@@ -47,8 +47,9 @@ jobs:
         with:
           node-version: "22"
           cache: "pnpm"
-      # postinstall do api já roda `prisma generate`
+      # gera o client Prisma antes do tsc (senão os tipos não existem)
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter api exec prisma generate
       - run: pnpm --filter api lint
       - run: pnpm --filter api exec prisma migrate deploy
       - run: pnpm --filter api test
@@ -68,5 +69,5 @@ jobs:
           script: |
             cd /root/blog
             git pull
-            docker compose -f docker-compose.prod.yml -p blog build api
-            docker compose -f docker-compose.prod.yml -p blog up -d --no-deps api
+            docker compose -f docker-compose.prod.yml --env-file .env -p blog build api
+            docker compose -f docker-compose.prod.yml --env-file .env -p blog up -d --no-deps api

@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMPOSE="docker compose -f docker-compose.prod.yml -p blog"
+COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env -p blog"
 
 # Preflight: variáveis obrigatórias no .env
 if [[ ! -f .env ]]; then

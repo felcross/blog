@@ -44,5 +44,5 @@ jobs:
           script: |
             cd /root/blog
             git pull
-            docker compose -f docker-compose.prod.yml -p blog build web
-            docker compose -f docker-compose.prod.yml -p blog up -d --no-deps web
+            docker compose -f docker-compose.prod.yml --env-file .env -p blog build web
+            docker compose -f docker-compose.prod.yml --env-file .env -p blog up -d --no-deps web

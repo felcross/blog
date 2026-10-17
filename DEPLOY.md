@@ -42,7 +42,7 @@ Copie de `.env.example` e preencha. **Nunca commite o `.env`.**
 
 ```bash
 # Primeira subida ou update completo
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 
 # Update via script (git pull + build + up)
 ./scripts/deploy.sh
@@ -54,9 +54,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 ## Logs
 
 ```bash
-docker compose -f docker-compose.prod.yml logs -f api
-docker compose -f docker-compose.prod.yml logs -f web
-docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml --env-file .env logs -f api
+docker compose -f docker-compose.prod.yml --env-file .env logs -f web
+docker compose -f docker-compose.prod.yml --env-file .env ps
 ```
 
 ## Migrations e seed
@@ -64,13 +64,13 @@ docker compose -f docker-compose.prod.yml ps
 - Migrations rodam **automaticamente** no start da API (`prisma migrate deploy`).
 - Seed **não** roda em produção. Para popular o admin + posts de exemplo (uma vez):
   ```bash
-  docker compose -f docker-compose.prod.yml exec api npx prisma db seed
+  docker compose -f docker-compose.prod.yml --env-file .env exec api npx prisma db seed
   ```
 
 ## Backup do Postgres
 
 ```bash
-docker compose -f docker-compose.prod.yml exec postgres \
+docker compose -f docker-compose.prod.yml --env-file .env exec postgres \
   pg_dump -U blog blog > "backup-blog-$(date +%Y%m%d-%H%M%S).sql"
 ```
 
@@ -78,7 +78,7 @@ Restore:
 
 ```bash
 cat backup-blog-XXXX.sql | \
-  docker compose -f docker-compose.prod.yml exec -T postgres psql -U blog blog
+  docker compose -f docker-compose.prod.yml --env-file .env exec -T postgres psql -U blog blog
 ```
 
 ## Nginx Proxy Manager
