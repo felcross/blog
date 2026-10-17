@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-light-bg: #f5f2ed;
+  --color-dark-bg: #0a0a0a;
+  --color-text-on-light: #111111;
+  --color-text-on-dark: #ffffff;
+  --color-muted: #9a9a9a;
+  --color-accent: #ff4d1c;
+  --color-surface-dark: #1c1c1c;
+  --color-border-light: rgba(17, 17, 17, 0.1);
+  --color-border-dark: rgba(255, 255, 255, 0.2);
+  --color-text-on-light-muted: rgba(17, 17, 17, 0.5);
+  --color-text-on-light-faint: rgba(17, 17, 17, 0.4);
+  --color-text-on-light-subtle: rgba(17, 17, 17, 0.3);
+  --color-text-on-light-ghost: rgba(17, 17, 17, 0.15);
+  --color-overlay-dark: rgba(0, 0, 0, 0.5);
+  --color-overlay-medium: rgba(0, 0, 0, 0.3);
+  --color-overlay-light: rgba(0, 0, 0, 0.1);
+  --font-inter: "Inter", sans-serif;
+  --font-dm-sans: "DM Sans", sans-serif;
+  --font-playfair: "Playfair Display", serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--color-light-bg);
+    color: var(--color-text-on-light);
+    font-family: var(--font-dm-sans), sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-text-on-dark);
+  }
+}

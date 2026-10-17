@@ -1,0 +1,32 @@
+# Dependencies & build output
+node_modules
+**/node_modules
+dist
+**/dist
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Git & tooling
+.git
+.github
+.mimocode
+.cache
+coverage
+*.log
+
+# Docs & specs (not needed in images)
+*.md
+!README.md
+
+# Local compose overrides
+docker-compose.override.yml
+docker-compose.dev.yml
+
+# Tests (not needed at runtime)
+**/*.test.ts
+**/*.test.tsx
+**/__tests__

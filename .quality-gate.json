@@ -1,0 +1,19 @@
+{
+  "coverage": {
+    "lines": 0,
+    "branches": 0,
+    "functions": 0,
+    "statements": 0
+  },
+  "duplication": {
+    "lines": 0
+  },
+  "maxFileSize": {
+    "warn": 500,
+    "fail": 1000
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 0
+  }
+}

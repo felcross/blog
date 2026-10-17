@@ -1,28 +1,20 @@
 # Environment
 .env
+.env.*
+!.env.example
 
-# Legacy (Streamlit monolith)
-legacy/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
-*.db
-.pytest_cache/
-.ruff_cache/
-
-# HubSpot cache
-.cache_hubspot/
-
-# Frontend
+# Node
 node_modules/
 dist/
+*.tsbuildinfo
 
 # Local overrides
 docker-compose.override.yml
 
 # MiMoCode
 .mimocode/
+
+# Quality / tooling caches
+.quality-gate.json.bak
+coverage/
+.lighthouseci/

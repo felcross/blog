@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# deploy-clean.sh — Reset limpo do projeto crmDeskIA na VPS.
-# SEMPRE roda com -p crmdeskia para não afetar outros projetos.
+# deploy-clean.sh — Reset limpo do Blog na VPS.
+# ⚠️  DESTRUTIVO: `down -v` APAGA o banco de dados (volumes).
+# Use apenas para reset total. Para deploy normal, use ./scripts/deploy.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROJECT="crmdeskia"
+COMPOSE="docker compose -f docker-compose.prod.yml -p blog"
 
-echo "=== Deploy limpo: $PROJECT ==="
+echo "=== Deploy limpo: blog ==="
 echo "Parando containers e removendo volumes..."
-docker compose -p "$PROJECT" down -v
+$COMPOSE down -v
 
 echo "Rebuildando imagens sem cache..."
-docker compose -p "$PROJECT" build --no-cache
+$COMPOSE build --no-cache
 
 echo "Subindo serviços..."
-docker compose -p "$PROJECT" up -d
+$COMPOSE up -d
 
 echo "=== Deploy concluído ==="
-docker compose -p "$PROJECT" ps
+$COMPOSE ps

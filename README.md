@@ -1,126 +1,103 @@
-# CRM AI Portal
+# Portfolio Blog
 
-Portal CRM com dashboard analítico, chat com IA e captura de leads, integrado ao HubSpot.
+Full-stack TypeScript blog: React + Vite frontend, Express + Prisma + PostgreSQL backend, magic-link auth.
 
 ## Stack
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Frontend | React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui |
-| Backend | FastAPI (async) + Python 3.12 |
-| Database | PostgreSQL 16 + SQLAlchemy async + Alembic |
-| Cache | Redis 7 |
-| AI/LLM | LangChain + Groq (Llama 3.3 70B) |
-| CRM | HubSpot REST API |
-| Deploy | Docker Compose + Nginx Proxy Manager + Cloudflare |
-
-## Estrutura
-
-```
-├── backend/           # FastAPI BFF
-│   ├── app/
-│   │   ├── api/v1/    # Endpoints REST
-│   │   ├── models/    # Pydantic contracts
-│   │   ├── entities/  # SQLAlchemy ORM
-│   │   ├── repositories/  # Data access
-│   │   ├── services/  # Business logic
-│   │   ├── events/    # Redis Pub/Sub fan-out
-│   │   ├── cache/     # Redis cache layer
-│   │   ├── auth/      # Google OAuth
-│   │   ├── middleware/ # Security, logging, rate limit
-│   │   └── observability/ # Sentry, metrics, health
-│   ├── templates/     # Jinja2 PDF templates
-│   └── tests/         # pytest
-├── frontend/          # React SPA
-│   └── src/
-│       ├── api/       # API client
-│       ├── components/ # shadcn/ui + layout
-│       ├── features/  # Dashboard, Chat, Leads, Reports, Auth
-│       ├── hooks/     # React Query hooks
-│       └── test/      # Vitest + MSW
-└── docker-compose.yml # 4 services: frontend, backend, postgres, redis
-```
+| Layer | Tech |
+|---|---|
+| Web | React 18, Vite 6, React Router, TanStack Query, Tailwind v4, react-markdown |
+| API | Express 5, Prisma 6, Zod, Pino, TypeScript strict |
+| Infra | Docker Compose (PostgreSQL 16, Redis 7, Mailpit — dev) / nginx + Postgres (prod) |
+| Tests | Vitest, Supertest, Testing Library, vitest-axe |
 
 ## Setup
 
 ```bash
-cp .env.example .env
-# Editar .env com suas credenciais
-
+# 1. Start infrastructure (Postgres + Redis + Mailpit)
 docker compose up -d
-# Frontend: http://localhost:8502
-# Backend API: http://localhost:8000/api/docs
+
+# 2. Configure env
+cp .env.example .env
+# edit .env as needed
+
+# 3. Install dependencies
+pnpm install
+
+# 4. Migrate + seed
+pnpm db:migrate
+pnpm db:seed
+
+# 5. Dev (API :3001 + Web :5173)
+pnpm dev
 ```
 
-## Desenvolvimento Local
+Mailpit UI (dev emails): http://localhost:8025
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | API + Web in parallel |
+| `pnpm build` | Build both packages |
+| `pnpm test` | Run all tests |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | TypeScript check both packages |
+| `pnpm db:migrate` | Prisma migrate dev |
+| `pnpm db:migrate:deploy` | Prisma migrate deploy (produção) |
+| `pnpm db:seed` | Seed admin + sample posts |
+| `pnpm db:reset` | Reset DB + migrate + seed |
+
+## Deploy (VPS)
+
+Guia completo (env vars, Nginx Proxy Manager, backup, CI/CD): **[DEPLOY.md](./DEPLOY.md)**
 
 ```bash
-# 1. Subir dependências (Postgres + Redis)
-#    A rede rede_vps é criada automaticamente pelo docker-compose.override.yml
-docker compose up -d redis postgres
+# Produção (atrás do NPM)
+docker compose -f docker-compose.prod.yml up -d --build
 
-# 2. Configurar backend/.env
-#    DATABASE_URL e REDIS_URL apontam para localhost (não nomes de serviço)
-#    DATABASE_URL=postgresql+asyncpg://postgres:123@localhost:5433/postgres
-#    REDIS_URL=redis://localhost:6380/0
-
-# 3. Rodar backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# 4. Rodar frontend (em outro terminal)
-cd frontend
-npm install
-npm run dev
+# Deploy via script
+./scripts/deploy.sh
 ```
 
-## Testes
-
-```bash
-# Backend
-cd backend && pytest tests/ -v
-
-# Frontend
-cd frontend && npm test
-```
-
-## Deploy
-
-```bash
-./deploy.sh
-```
+Topologia: Internet → NPM (SSL) → `blog-web:80` → `api:3001` → `postgres` (rede interna).
+Nenhum serviço publica porta no host; só o `web` é alcançável via NPM.
 
 ## API
 
-- `GET /api/v1/health` — Health check detalhado
-- `GET /api/v1/dashboard/kpis` — KPIs do pipeline
-- `GET /api/v1/dashboard/charts` — Dados para gráficos
-- `GET /api/v1/dashboard/deals` — Deals paginados
-- `GET /api/v1/dashboard/leads` — Leads paginados
-- `POST /api/v1/chat` — Chat analítico (SSE streaming)
-- `POST /api/v1/leads` — Captura de lead + fan-out (público)
-- `POST /api/v1/leads/{id}/convert` — Converter lead em deal
-- `POST /api/v1/reports/generate` — Gerar PDF
-- `POST /api/v1/reports/csv-upload` — Análise de CSV
-- `GET /api/v1/auth/login` — Google OAuth login URL
-- `GET /api/v1/auth/callback` — Google OAuth callback
-- `GET /api/v1/auth/me` — Dados do usuário logado
-- `POST /api/v1/auth/logout` — Logout (limpa sessão Redis)
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/health` | Health + DB check |
+| GET | `/api/posts?page=&limit=` | Published posts (paginated) |
+| GET | `/api/posts/:slug` | Single published post (404 for drafts) |
 
-## Variáveis de Ambiente
+Every response includes `x-request-id`. Errors use the envelope:
 
-| Variável | Descrição | Default |
-|----------|-----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:123@localhost:5433/postgres` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6380/0` |
-| `GROQ_API_KEY` | API key do Groq (LLM) | — |
-| `GROQ_MODEL` | Modelo do Groq | `llama-3.3-70b-versatile` |
-| `GOOGLE_CLIENT_ID` | Client ID do Google OAuth | — |
-| `GOOGLE_CLIENT_SECRET` | Client Secret do Google OAuth | — |
-| `GOOGLE_REDIRECT_URI` | Redirect URI do OAuth | — |
-| `SESSION_TTL_SECONDS` | TTL da sessão Redis (segundos) | `604800` (7 dias) |
-| `SECRET_KEY` | Chave secreta da aplicação | `change-me-in-production` |
-| `APP_ENV` | Ambiente (`development`/`production`/`cloudflare`) | `development` |
-| `FRONTEND_ORIGIN` | Origin do frontend (CORS) | `http://localhost:5173` |
-| `SENTRY_DSN` | DSN do Sentry (opcional) | — |
+```json
+{ "error": { "code": "NOT_FOUND", "message": "Post not found", "details": {} } }
+```
+
+## Project structure
+
+```
+apps/
+  api/          Express + Prisma
+  web/          React + Vite
+```
+
+Architecture: `routes → controller → service → Prisma` (no repository layer).
+
+## Testing
+
+```bash
+pnpm test
+```
+
+- API: service visibility + Supertest per endpoint
+- Web: unit/integration + axe accessibility
+
+## Notes
+
+- PostgreSQL is mapped to host port **5433** in dev only (5432 is used by another local project). In production Postgres is not published on the host.
+- Draft posts are never returned by public endpoints.
+- Phases 3–6 of the original spec are roadmap-only (not implemented).
