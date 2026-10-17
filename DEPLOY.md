@@ -3,7 +3,7 @@
 ## Topologia
 
 ```
-Internet → NPM (443, SSL) → blog-web:80 (nginx: SPA + proxy /api/)
+Internet → NPM (443, SSL) → blog:80 (nginx: SPA + proxy /api/)
   → api:3001 (Express + Prisma) → postgres:5432 (rede interna)
 ```
 
@@ -86,13 +86,13 @@ cat backup-blog-XXXX.sql | \
 1. **DNS** (Cloudflare): `blog.felbatista.tech` → IP da VPS
 2. **Proxy Host** no NPM:
    - Domain: `blog.felbatista.tech`
-   - Forward: `blog-web:80` (na rede `NPM_NETWORK`)
+   - Forward: `blog:80` (na rede `NPM_NETWORK`)
    - SSL: via Cloudflare (Full/Strict) ou Let's Encrypt no NPM
-3. O NPM envia `X-Forwarded-For` e `X-Forwarded-Proto` — o nginx do `blog-web` repassa o proto original para a API (necessário p/ cookies `Secure`).
+3. O NPM envia `X-Forwarded-For` e `X-Forwarded-Proto` — o nginx do `blog` repassa o proto original para a API (necessário p/ cookies `Secure`).
 
 ## CI/CD (GitHub Actions)
 
 Push em `main` dispara `.github/workflows/api.yml` e `web.yml`:
-lint/test → SSH na VPS (`/root/crmDeskIA`) → `git pull` + build do serviço alterado.
+lint/test → SSH na VPS (`/root/blog`) → `git pull` + build do serviço alterado.
 
 Secrets necessárias no repo GitHub: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.

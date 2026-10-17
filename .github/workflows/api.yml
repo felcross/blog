@@ -15,6 +15,29 @@ concurrency:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: blog
+          POSTGRES_PASSWORD: blog
+          POSTGRES_DB: blog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://blog:blog@localhost:5432/blog
+      ADMIN_EMAIL: admin@example.com
+      WEB_URL: http://localhost:5173
+      SESSION_SECRET: ci-test-secret-16chars
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      SMTP_FROM: "Blog <noreply@blog.local>"
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,8 +47,10 @@ jobs:
         with:
           node-version: "22"
           cache: "pnpm"
+      # postinstall do api já roda `prisma generate`
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter api lint
+      - run: pnpm --filter api exec prisma migrate deploy
       - run: pnpm --filter api test
 
   deploy:
@@ -41,7 +66,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /root/crmDeskIA
+            cd /root/blog
             git pull
             docker compose -f docker-compose.prod.yml -p blog build api
             docker compose -f docker-compose.prod.yml -p blog up -d --no-deps api

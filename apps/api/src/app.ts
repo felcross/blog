@@ -14,7 +14,7 @@ import { adminRouter } from "./modules/admin/admin.routes.js";
 export function createApp() {
   const app = express();
 
-  // Behind NPM + blog-web nginx: lets req.ip / secure cookies see the real client
+  // Behind NPM + blog nginx: lets req.ip / secure cookies see the real client
   app.set("trust proxy", env.TRUST_PROXY);
   app.disable("x-powered-by");
   app.use(helmet());

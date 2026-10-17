@@ -1,6 +1,6 @@
 # Produção — VPS atrás do Nginx Proxy Manager.
 # Uso: docker compose -f docker-compose.prod.yml up -d --build
-# Topologia: Internet → NPM (443/SSL) → blog-web:80 → api:3001 → postgres
+# Topologia: Internet → NPM (443/SSL) → blog:80 → api:3001 → postgres
 name: blog
 
 services:
@@ -43,7 +43,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: blog-web
+    container_name: blog
     restart: unless-stopped
     depends_on:
       api:
@@ -60,4 +60,4 @@ networks:
     driver: bridge
   proxy:
     external: true
-    name: ${NPM_NETWORK}
+    name: ${NPM_NETWORK:?defina NPM_NETWORK no .env}

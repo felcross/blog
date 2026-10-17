@@ -60,7 +60,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 ./scripts/deploy.sh
 ```
 
-Topologia: Internet → NPM (SSL) → `blog-web:80` → `api:3001` → `postgres` (rede interna).
+Topologia: Internet → NPM (SSL) → `blog:80` → `api:3001` → `postgres` (rede interna).
 Nenhum serviço publica porta no host; só o `web` é alcançável via NPM.
 
 ## API
