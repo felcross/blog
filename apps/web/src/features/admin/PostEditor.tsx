@@ -68,7 +68,7 @@ export default function PostEditor() {
     queryFn: () => fetchAdminPost(id as string),
     enabled: isAdmin(user) && isEdit,
     retry: (failureCount, error) => {
-      if (isApiError(error) && error.code === "NOT_FOUND") return false;
+      if (isApiError(error) && error.code === "POST_NOT_FOUND") return false;
       return failureCount < 2;
     },
   });
@@ -121,7 +121,7 @@ export default function PostEditor() {
   }
 
   if (isEdit && postQuery.isError) {
-    const notFound = isApiError(postQuery.error) && postQuery.error.code === "NOT_FOUND";
+    const notFound = isApiError(postQuery.error) && postQuery.error.code === "POST_NOT_FOUND";
     if (notFound) {
       return <NotFound />;
     }

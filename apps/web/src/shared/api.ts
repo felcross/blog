@@ -2,6 +2,7 @@ export interface ApiErrorBody {
   error: {
     code: string;
     message: string;
+    requestId?: string;
     details?: unknown;
   };
 }
@@ -10,13 +11,21 @@ export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly details?: unknown;
+  readonly requestId?: string;
 
-  constructor(code: string, message: string, status: number, details?: unknown) {
+  constructor(
+    code: string,
+    message: string,
+    status: number,
+    details?: unknown,
+    requestId?: string,
+  ) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
     this.details = details;
+    this.requestId = requestId;
   }
 
   toBody(): ApiErrorBody {
@@ -24,6 +33,7 @@ export class ApiError extends Error {
       error: {
         code: this.code,
         message: this.message,
+        ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
         ...(this.details !== undefined ? { details: this.details } : {}),
       },
     };
@@ -58,11 +68,12 @@ async function parseErrorBody(res: Response): Promise<ApiErrorBody | null> {
 
 const STATUS_FALLBACK_CODE: Record<number, string> = {
   400: "VALIDATION_ERROR",
-  401: "UNAUTHORIZED",
+  401: "UNAUTHENTICATED",
   403: "FORBIDDEN",
-  404: "NOT_FOUND",
+  404: "POST_NOT_FOUND",
   409: "CONFLICT",
   429: "RATE_LIMITED",
+  503: "SERVICE_UNAVAILABLE",
 };
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
@@ -83,10 +94,22 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = await parseErrorBody(res);
     if (body) {
-      throw new ApiError(body.error.code, body.error.message, res.status, body.error.details);
+      throw new ApiError(
+        body.error.code,
+        body.error.message,
+        res.status,
+        body.error.details,
+        body.error.requestId,
+      );
     }
     const code = STATUS_FALLBACK_CODE[res.status] ?? "INTERNAL_ERROR";
-    throw new ApiError(code, `Request failed with status ${res.status}`, res.status);
+    throw new ApiError(
+      code,
+      `Request failed with status ${res.status}`,
+      res.status,
+      undefined,
+      res.headers.get("x-request-id") ?? undefined,
+    );
   }
 
   if (res.status === 204) {

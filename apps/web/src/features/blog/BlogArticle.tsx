@@ -17,7 +17,7 @@ export function BlogArticle() {
     queryKey: ["posts", slug],
     queryFn: () => apiGet<PostDetail>(`/posts/${encodeURIComponent(slug)}`),
     retry: (failureCount, err) => {
-      if (isApiError(err) && err.code === "NOT_FOUND") return false;
+      if (isApiError(err) && err.code === "POST_NOT_FOUND") return false;
       return failureCount < 2;
     },
     enabled: slug.length > 0,
@@ -43,7 +43,7 @@ export function BlogArticle() {
     );
   }
 
-  const notFound = isError && isApiError(error) && error.code === "NOT_FOUND";
+  const notFound = isError && isApiError(error) && error.code === "POST_NOT_FOUND";
 
   if (isError && notFound) {
     return (

@@ -51,6 +51,7 @@ describe("magic link lifecycle", () => {
     const svc = await import("./auth.service");
     const emailService = {
       sendMagicLink: vi.fn(async () => {}),
+      sendWelcome: vi.fn(async () => {}),
     };
     const result = await svc.requestMagicLink(TEST_EMAIL, emailService);
 
@@ -66,7 +67,7 @@ describe("magic link lifecycle", () => {
 
   it("verifyToken consumes the token and creates a session", async () => {
     const svc = await import("./auth.service");
-    const emailService = { sendMagicLink: vi.fn(async () => {}) };
+    const emailService = { sendMagicLink: vi.fn(async () => {}), sendWelcome: vi.fn(async () => {}) };
     const { rawToken } = await svc.requestMagicLink(TEST_EMAIL, emailService);
 
     const result = await svc.verifyToken(rawToken);
@@ -82,7 +83,7 @@ describe("magic link lifecycle", () => {
 
   it("reuse of a consumed token fails", async () => {
     const svc = await import("./auth.service");
-    const emailService = { sendMagicLink: vi.fn(async () => {}) };
+    const emailService = { sendMagicLink: vi.fn(async () => {}), sendWelcome: vi.fn(async () => {}) };
     const { rawToken } = await svc.requestMagicLink(TEST_EMAIL, emailService);
     await svc.verifyToken(rawToken);
     await expect(svc.verifyToken(rawToken)).rejects.toThrow();
@@ -90,7 +91,7 @@ describe("magic link lifecycle", () => {
 
   it("expired token fails", async () => {
     const svc = await import("./auth.service");
-    const emailService = { sendMagicLink: vi.fn(async () => {}) };
+    const emailService = { sendMagicLink: vi.fn(async () => {}), sendWelcome: vi.fn(async () => {}) };
     const { rawToken } = await svc.requestMagicLink(TEST_EMAIL, emailService);
 
     // Force expiry
@@ -111,7 +112,7 @@ describe("magic link lifecycle", () => {
 describe("session lifecycle", () => {
   it("getSessionUser returns user for valid session", async () => {
     const svc = await import("./auth.service");
-    const emailService = { sendMagicLink: vi.fn(async () => {}) };
+    const emailService = { sendMagicLink: vi.fn(async () => {}), sendWelcome: vi.fn(async () => {}) };
     const { rawToken } = await svc.requestMagicLink(TEST_EMAIL, emailService);
     const { sessionRawToken, user } = await svc.verifyToken(rawToken);
 
@@ -122,7 +123,7 @@ describe("session lifecycle", () => {
 
   it("destroySession invalidates the session", async () => {
     const svc = await import("./auth.service");
-    const emailService = { sendMagicLink: vi.fn(async () => {}) };
+    const emailService = { sendMagicLink: vi.fn(async () => {}), sendWelcome: vi.fn(async () => {}) };
     const { rawToken } = await svc.requestMagicLink(TEST_EMAIL, emailService);
     const { sessionRawToken } = await svc.verifyToken(rawToken);
 
@@ -136,7 +137,7 @@ describe("ADMIN_EMAIL bootstrap", () => {
   it("email matching ADMIN_EMAIL gets role ADMIN", async () => {
     const adminEmail = process.env.ADMIN_EMAIL!;
     const svc = await import("./auth.service");
-    const emailService = { sendMagicLink: vi.fn(async () => {}) };
+    const emailService = { sendMagicLink: vi.fn(async () => {}), sendWelcome: vi.fn(async () => {}) };
     const { rawToken } = await svc.requestMagicLink(adminEmail, emailService);
     const { user } = await svc.verifyToken(rawToken);
     expect(user.role).toBe("ADMIN");
@@ -153,6 +154,7 @@ describe("EmailService swap", () => {
       sendMagicLink: async (email: string, link: string) => {
         sent.push(`${email} -> ${link}`);
       },
+      sendWelcome: async () => {},
     };
     const svc = await import("./auth.service");
     await svc.requestMagicLink(TEST_EMAIL, custom);

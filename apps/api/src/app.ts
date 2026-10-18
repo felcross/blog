@@ -4,6 +4,8 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
+import { accessLog } from "./shared/access-log.js";
+import { enterWithContext } from "./shared/context.js";
 import { errorHandler, notFoundHandler } from "./shared/error-middleware.js";
 import { logger } from "./shared/logger.js";
 import { healthRouter } from "./modules/health/health.routes.js";
@@ -27,7 +29,7 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
 
-  // Correlation id: accept inbound x-request-id or generate one
+  // Correlation id + request context (AsyncLocalStorage) for getLogger()
   app.use((req, res, next) => {
     const inbound = req.headers["x-request-id"];
     const requestId =
@@ -36,8 +38,11 @@ export function createApp() {
         : randomUUID();
     res.setHeader("x-request-id", requestId);
     req.headers["x-request-id"] = requestId;
+    enterWithContext({ requestId });
     next();
   });
+
+  app.use(accessLog);
 
   app.use("/api/health", healthRouter);
   app.use("/api/posts", postsRouter);

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import {
   clearCsrfCookie,
   clearSessionCookie,
@@ -10,8 +10,14 @@ import {
   setSessionCookie,
 } from "../../shared/auth-middleware.js";
 import { createEmailService } from "../../shared/email.js";
-import { AppError } from "../../shared/errors.js";
-import { destroySession, requestMagicLink, verifyToken } from "./auth.service.js";
+import { AppError } from "../../shared/errors/index.js";
+import { getContext } from "../../shared/context.js";
+import {
+  destroySession,
+  maybeSendWelcome,
+  requestMagicLink,
+  verifyToken,
+} from "./auth.service.js";
 
 const emailService = createEmailService();
 
@@ -41,7 +47,7 @@ const magicLinkLimiter = rateLimit({
       "RATE_LIMITED",
       "Too many requests, please try again later",
     );
-    res.status(err.status).json(err.toBody());
+    res.status(err.status).json(err.toBody(getContext()?.requestId ?? "unknown"));
   },
 });
 
@@ -53,16 +59,23 @@ authRouter.post("/magic-link", magicLinkLimiter, async (req, res, next) => {
     await requestMagicLink(email, emailService);
     res.status(202).json({ ok: true });
   } catch (err) {
-    next(err);
+    if (err instanceof AppError || err instanceof ZodError) {
+      next(err);
+      return;
+    }
+    // Redis down / enqueue failure → 503 (spec Phase 4 §13)
+    next(new AppError("SERVICE_UNAVAILABLE", "Email service temporarily unavailable"));
   }
 });
 
 authRouter.post("/verify", async (req, res, next) => {
   try {
     const { token } = verifyBodySchema.parse(req.body);
-    const { user, sessionRawToken } = await verifyToken(token);
+    const { user, sessionRawToken, created } = await verifyToken(token);
     setSessionCookie(res, sessionRawToken);
     setCsrfCookie(res);
+    // Welcome email is best-effort and must never fail the login.
+    await maybeSendWelcome(emailService, user, created);
     res.status(200).json({ user });
   } catch (err) {
     next(err);

@@ -22,7 +22,7 @@ const SLUG = "admin-state-machine-test";
 
 async function adminLogin() {
   const svc = await import("../auth/auth.service");
-  const emailService = { sendMagicLink: async () => {} };
+  const emailService = { sendMagicLink: async () => {}, sendWelcome: async () => {} };
   const { rawToken } = await svc.requestMagicLink(ADMIN_EMAIL, emailService);
   const verify = await request(app).post("/api/auth/verify").send({ token: rawToken });
   const cookies = verify.headers["set-cookie"] as unknown as string[];
@@ -79,10 +79,10 @@ describe("admin posts state machine", () => {
     expect(res.body.publishedAt).toBeTruthy();
   });
 
-  it("publish again returns 409 CONFLICT", async () => {
+  it("publish again returns 409 INVALID_STATE_TRANSITION", async () => {
     const res = await authed().post(`/api/admin/posts/${postId}/publish`);
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("CONFLICT");
+    expect(res.body.error.code).toBe("INVALID_STATE_TRANSITION");
   });
 
   it("unpublish returns to DRAFT", async () => {
@@ -92,10 +92,10 @@ describe("admin posts state machine", () => {
     expect(res.body.publishedAt).toBeNull();
   });
 
-  it("unpublish again returns 409 CONFLICT", async () => {
+  it("unpublish again returns 409 INVALID_STATE_TRANSITION", async () => {
     const res = await authed().post(`/api/admin/posts/${postId}/unpublish`);
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("CONFLICT");
+    expect(res.body.error.code).toBe("INVALID_STATE_TRANSITION");
   });
 
   it("publishedAt is set only once", async () => {

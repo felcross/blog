@@ -23,7 +23,7 @@ export async function fetchAdminPost(id: string): Promise<AdminPost> {
   );
   const found = result.items.find((item) => item.id === id);
   if (!found) {
-    throw new ApiError("NOT_FOUND", "Post not found", 404);
+    throw new ApiError("POST_NOT_FOUND", "Post not found", 404);
   }
   return found;
 }

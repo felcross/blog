@@ -1,7 +1,13 @@
 # Produção — VPS atrás do Nginx Proxy Manager.
 # Uso: docker compose -f docker-compose.prod.yml up -d --build
-# Topologia: Internet → NPM (443/SSL) → blog:80 → api:3001 → postgres
+# Topologia: Internet → NPM (443/SSL) → blog:80 → api:3001 → postgres/redis
 name: blog
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
@@ -20,6 +26,22 @@ services:
       retries: 5
     networks:
       - internal
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    restart: unless-stopped
+    volumes:
+      - blog_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    logging: *default-logging
 
   api:
     build:
@@ -33,11 +55,37 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-blog}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-blog}
       NODE_ENV: production
       TRUST_PROXY: ${TRUST_PROXY:-2}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    logging: *default-logging
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: blog-worker
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-blog}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-blog}
+      NODE_ENV: production
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:
       - internal
+    logging: *default-logging
 
   web:
     build:
@@ -51,9 +99,11 @@ services:
     networks:
       - internal
       - proxy
+    logging: *default-logging
 
 volumes:
   blog_postgres_data:
+  blog_redis_data:
 
 networks:
   internal:

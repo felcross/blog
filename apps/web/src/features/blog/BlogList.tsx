@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { apiGet, isApiError, type ApiError } from "@/shared/api";
+import { apiGet } from "@/shared/api";
+import { errorStateMessage } from "@/shared/error";
 import { strings } from "@/shared/strings";
 import { BlogCard } from "./BlogCard";
 import type { Paginated, PostSummary } from "./types";
@@ -11,15 +12,6 @@ const PAGE_SIZE = 9;
 function resolvePage(searchParams: URLSearchParams): number {
   const raw = Number(searchParams.get("page") ?? "1");
   return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
-}
-
-function errorStateMessage(error: unknown): string {
-  if (isApiError(error)) {
-    const apiError = error as ApiError;
-    if (apiError.code === "NETWORK_ERROR") return strings.errors.networkMessage;
-    if (apiError.code === "RATE_LIMITED") return strings.errors.rateLimitedMessage;
-  }
-  return strings.errors.genericMessage;
 }
 
 export function BlogList() {

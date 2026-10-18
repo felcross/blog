@@ -65,11 +65,20 @@ afterAll(async () => {
 });
 
 describe("GET /api/health", () => {
-  it("returns ok", async () => {
+  it("returns ok without touching dependencies", async () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("ok");
     expect(res.headers["x-request-id"]).toBeTruthy();
+  });
+});
+
+describe("GET /api/health/ready", () => {
+  it("returns ok when database is up", async () => {
+    const res = await request(app).get("/api/health/ready");
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+    expect(res.body.checks.database).toBe("up");
   });
 });
 
@@ -116,12 +125,14 @@ describe("GET /api/posts/:slug", () => {
   it("returns 404 for drafts", async () => {
     const res = await request(app).get("/api/posts/e2e-draft");
     expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe("NOT_FOUND");
+    expect(res.body.error.code).toBe("POST_NOT_FOUND");
+    expect(res.body.error.requestId).toBeTruthy();
   });
 
   it("returns 404 for unknown slug", async () => {
     const res = await request(app).get("/api/posts/does-not-exist");
     expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe("NOT_FOUND");
+    expect(res.body.error.code).toBe("POST_NOT_FOUND");
+    expect(res.body.error.requestId).toBeTruthy();
   });
 });

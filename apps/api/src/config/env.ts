@@ -13,6 +13,12 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+    .default("info"),
+  REDIS_URL: z.string().url().default("redis://localhost:6379"),
+  EMAIL_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
+  EMAIL_BACKOFF_MS: z.coerce.number().int().positive().default(5000),
 });
 
 export type Env = z.infer<typeof envSchema>;

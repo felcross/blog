@@ -7,9 +7,11 @@ on:
       - "apps/web/**"
       - "docker-compose.prod.yml"
       - ".github/workflows/web.yml"
+      - "scripts/smoke.sh"
 
+# Um único grupo: api e web nunca fazem deploy ao mesmo tempo
 concurrency:
-  group: deploy-vps-web
+  group: deploy-vps
   cancel-in-progress: false
 
 jobs:
@@ -44,5 +46,5 @@ jobs:
           script: |
             cd /root/blog
             git pull
-            docker compose -f docker-compose.prod.yml --env-file .env -p blog build web
-            docker compose -f docker-compose.prod.yml --env-file .env -p blog up -d --no-deps web
+            docker compose -f docker-compose.prod.yml --env-file .env -p blog up -d --build
+            ./scripts/smoke.sh

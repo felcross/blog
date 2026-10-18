@@ -42,7 +42,7 @@ export const server = setupServer(
       });
     }
     return HttpResponse.json(
-      { error: { code: "NOT_FOUND", message: "Post not found" } },
+      { error: { code: "POST_NOT_FOUND", message: "Post not found", requestId: "test" } },
       { status: 404 },
     );
   }),

@@ -41,6 +41,11 @@ export const strings = {
     genericMessage: "Ocorreu um erro inesperado. Tente novamente.",
     networkMessage: "Falha de conexão. Verifique sua internet e tente novamente.",
     rateLimitedMessage: "Muitas tentativas. Tente novamente em instantes.",
+    unauthenticatedMessage: "Sua sessão expirou. Faça login novamente.",
+    forbiddenMessage: "Você não tem permissão para esta ação.",
+    notFoundMessage: "O recurso solicitado não foi encontrado.",
+    validationMessage: "Dados inválidos. Verifique os campos e tente novamente.",
+    referenceLabel: "ref:",
     retry: "Tentar novamente",
   },
   errorBoundary: {

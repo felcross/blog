@@ -1,5 +1,5 @@
 import { Prisma, type Post, type PostStatus } from "@prisma/client";
-import { AppError } from "../../shared/errors.js";
+import { AppError, mapPrismaError } from "../../shared/errors/index.js";
 import { prisma } from "../../shared/prisma.js";
 import type { Paginated } from "../posts/posts.service.js";
 import type {
@@ -39,9 +39,7 @@ function toDetail(post: Post): AdminPostDetail {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
-  );
+  return mapPrismaError(err)?.code === "CONFLICT";
 }
 
 export async function listPosts(
@@ -100,7 +98,7 @@ export async function updatePost(
 ): Promise<AdminPostDetail> {
   const existing = await prisma.post.findUnique({ where: { id } });
   if (!existing) {
-    throw new AppError("NOT_FOUND", "Post not found");
+    throw new AppError("POST_NOT_FOUND");
   }
 
   const data: Prisma.PostUpdateInput = {};
@@ -123,7 +121,7 @@ export async function updatePost(
 export async function deletePost(id: string): Promise<void> {
   const result = await prisma.post.deleteMany({ where: { id } });
   if (result.count === 0) {
-    throw new AppError("NOT_FOUND", "Post not found");
+    throw new AppError("POST_NOT_FOUND");
   }
 }
 
@@ -131,10 +129,10 @@ export async function publishPost(id: string): Promise<AdminPostDetail> {
   return prisma.$transaction(async (tx) => {
     const post = await tx.post.findUnique({ where: { id } });
     if (!post) {
-      throw new AppError("NOT_FOUND", "Post not found");
+      throw new AppError("POST_NOT_FOUND");
     }
     if (post.status === "PUBLISHED") {
-      throw new AppError("CONFLICT", "Post is already published");
+      throw new AppError("INVALID_STATE_TRANSITION", "Post is already published");
     }
 
     const updated = await tx.post.update({
@@ -152,10 +150,10 @@ export async function unpublishPost(id: string): Promise<AdminPostDetail> {
   return prisma.$transaction(async (tx) => {
     const post = await tx.post.findUnique({ where: { id } });
     if (!post) {
-      throw new AppError("NOT_FOUND", "Post not found");
+      throw new AppError("POST_NOT_FOUND");
     }
     if (post.status === "DRAFT") {
-      throw new AppError("CONFLICT", "Post is already a draft");
+      throw new AppError("INVALID_STATE_TRANSITION", "Post is already a draft");
     }
 
     const updated = await tx.post.update({

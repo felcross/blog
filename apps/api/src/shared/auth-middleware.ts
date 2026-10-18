@@ -2,7 +2,8 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../config/env.js";
 import { getSessionUser, type AuthUser } from "../modules/auth/auth.service.js";
-import { AppError } from "./errors.js";
+import { setContextUserId } from "./context.js";
+import { AppError } from "./errors/index.js";
 
 export const SESSION_COOKIE_NAME = "session";
 export const CSRF_COOKIE_NAME = "csrf_token";
@@ -70,13 +71,14 @@ export async function requireAuth(
   try {
     const raw = req.cookies?.[SESSION_COOKIE_NAME];
     if (typeof raw !== "string" || raw.length === 0) {
-      throw new AppError("UNAUTHORIZED", "Authentication required");
+      throw new AppError("UNAUTHENTICATED", "Authentication required");
     }
     const user = await getSessionUser(raw);
     if (!user) {
-      throw new AppError("UNAUTHORIZED", "Invalid or expired session");
+      throw new AppError("UNAUTHENTICATED", "Invalid or expired session");
     }
     req.user = user;
+    setContextUserId(user.id);
     next();
   } catch (err) {
     next(err);
@@ -89,7 +91,7 @@ export function requireAdmin(
   next: NextFunction,
 ): void {
   if (!req.user) {
-    next(new AppError("UNAUTHORIZED", "Authentication required"));
+    next(new AppError("UNAUTHENTICATED", "Authentication required"));
     return;
   }
   if (req.user.role !== "ADMIN") {

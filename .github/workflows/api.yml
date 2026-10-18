@@ -7,9 +7,11 @@ on:
       - "apps/api/**"
       - "docker-compose.prod.yml"
       - ".github/workflows/api.yml"
+      - "scripts/smoke.sh"
 
+# Um único grupo: api e web nunca fazem deploy ao mesmo tempo
 concurrency:
-  group: deploy-vps-api
+  group: deploy-vps
   cancel-in-progress: false
 
 jobs:
@@ -29,6 +31,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL: postgresql://blog:blog@localhost:5432/blog
       ADMIN_EMAIL: admin@example.com
@@ -38,6 +49,8 @@ jobs:
       SMTP_PORT: "1025"
       SMTP_FROM: "Blog <noreply@blog.local>"
       NODE_ENV: test
+      REDIS_URL: redis://localhost:6379
+      EMAIL_BACKOFF_MS: "50"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -69,5 +82,5 @@ jobs:
           script: |
             cd /root/blog
             git pull
-            docker compose -f docker-compose.prod.yml --env-file .env -p blog build api
-            docker compose -f docker-compose.prod.yml --env-file .env -p blog up -d --no-deps api
+            docker compose -f docker-compose.prod.yml --env-file .env -p blog up -d --build
+            ./scripts/smoke.sh

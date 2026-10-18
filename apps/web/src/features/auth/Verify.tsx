@@ -29,7 +29,7 @@ export function Verify() {
       void queryClient.invalidateQueries({ queryKey: ["me"] });
       navigate(result.user.role === "ADMIN" ? "/admin" : "/", { replace: true });
     } catch (error) {
-      if (isApiError(error) && (error.code === "UNAUTHORIZED" || error.status === 401)) {
+      if (isApiError(error) && (error.code === "UNAUTHENTICATED" || error.code === "INVALID_TOKEN" || error.status === 401)) {
         setIsInvalid(true);
         setErrorMessage(strings.auth.verifyInvalidMessage);
       } else {

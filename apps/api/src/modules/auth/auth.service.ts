@@ -1,8 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@prisma/client";
 import { env } from "../../config/env.js";
+import { getLogger } from "../../shared/context.js";
+import { maskEmail } from "../../shared/logger.js";
 import type { EmailService } from "../../shared/email.js";
-import { AppError } from "../../shared/errors.js";
+import { AppError } from "../../shared/errors/index.js";
 import { prisma } from "../../shared/prisma.js";
 
 const LOGIN_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -48,7 +50,8 @@ export async function requestMagicLink(
   const rawToken = generateRawToken();
 
   // Only the newest magic link is valid: drop any previous unconsumed tokens.
-  await prisma.$transaction([
+  // Capture the created LoginToken id so the queue can use it as jobId.
+  const [, loginToken] = await prisma.$transaction([
     prisma.loginToken.deleteMany({
       where: { email: normalized, usedAt: null },
     }),
@@ -62,14 +65,16 @@ export async function requestMagicLink(
   ]);
 
   const link = `${env.WEB_URL}/verify?token=${rawToken}`;
-  await emailService.sendMagicLink(normalized, link);
+  await emailService.sendMagicLink(normalized, link, {
+    loginTokenId: loginToken.id,
+  });
 
   return { rawToken };
 }
 
 export async function verifyToken(
   rawToken: string,
-): Promise<{ user: AuthUser; sessionRawToken: string }> {
+): Promise<{ user: AuthUser; sessionRawToken: string; created: boolean }> {
   const tokenHash = hashToken(rawToken);
 
   return prisma.$transaction(async (tx) => {
@@ -79,7 +84,7 @@ export async function verifyToken(
       loginToken.usedAt !== null ||
       loginToken.expiresAt.getTime() < Date.now()
     ) {
-      throw new AppError("UNAUTHORIZED", "Invalid or expired login token");
+      throw new AppError("INVALID_TOKEN");
     }
 
     await tx.loginToken.update({
@@ -89,11 +94,21 @@ export async function verifyToken(
 
     const email = loginToken.email;
     const admin = isAdminEmail(email);
-    const user = await tx.user.upsert({
-      where: { email },
-      update: admin ? { role: "ADMIN" } : {},
-      create: { email, role: admin ? "ADMIN" : "USER" },
-    });
+
+    const existing = await tx.user.findUnique({ where: { email } });
+    let user: User;
+    let created = false;
+    if (existing) {
+      user = await tx.user.update({
+        where: { email },
+        data: admin ? { role: "ADMIN" } : {},
+      });
+    } else {
+      user = await tx.user.create({
+        data: { email, role: admin ? "ADMIN" : "USER" },
+      });
+      created = true;
+    }
 
     const sessionRawToken = generateRawToken();
     await tx.session.create({
@@ -104,8 +119,29 @@ export async function verifyToken(
       },
     });
 
-    return { user: toAuthUser(user), sessionRawToken };
+    return { user: toAuthUser(user), sessionRawToken, created };
   });
+}
+
+/** Enqueue welcome email only when verify created the user. Never fails login. */
+export async function maybeSendWelcome(
+  emailService: EmailService,
+  user: AuthUser,
+  created: boolean,
+): Promise<void> {
+  if (!created) return;
+  try {
+    await emailService.sendWelcome(user.email, user.name ?? undefined);
+    getLogger().info(
+      { userId: user.id, email: maskEmail(user.email) },
+      "welcome email enqueued",
+    );
+  } catch (err) {
+    getLogger().error(
+      { err, userId: user.id, email: maskEmail(user.email) },
+      "failed to enqueue welcome email",
+    );
+  }
 }
 
 export async function getSessionUser(

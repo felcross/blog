@@ -42,7 +42,7 @@ async function loginAs(email: string) {
   // Pull the raw token from the DB service path: request another link
   // and grab from FakeEmailService is not exposed here, so use the service directly
   const svc = await import("./auth.service");
-  const emailService = { sendMagicLink: async () => {} };
+  const emailService = { sendMagicLink: async () => {}, sendWelcome: async () => {} };
   const { rawToken } = await svc.requestMagicLink(email, emailService);
 
   const verify = await request(app).post("/api/auth/verify").send({ token: rawToken });
@@ -68,12 +68,13 @@ describe("POST /api/auth/magic-link", () => {
 });
 
 describe("POST /api/auth/verify", () => {
-  it("rejects invalid token with UNAUTHORIZED", async () => {
+  it("rejects invalid token with INVALID_TOKEN", async () => {
     const res = await request(app)
       .post("/api/auth/verify")
       .send({ token: "0".repeat(64) });
     expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe("UNAUTHORIZED");
+    expect(res.body.error.code).toBe("INVALID_TOKEN");
+    expect(res.body.error.requestId).toBeTruthy();
   });
 
   it("sets httpOnly session cookie and readable csrf cookie", async () => {
@@ -95,7 +96,7 @@ describe("GET /api/auth/me", () => {
   it("returns 401 without session", async () => {
     const res = await request(app).get("/api/auth/me");
     expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe("UNAUTHORIZED");
+    expect(res.body.error.code).toBe("UNAUTHENTICATED");
   });
 
   it("returns user with valid session cookie", async () => {
@@ -152,7 +153,7 @@ describe("authorization matrix", () => {
   it("no session gets 401 on admin routes", async () => {
     const res = await request(app).get("/api/admin/posts");
     expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe("UNAUTHORIZED");
+    expect(res.body.error.code).toBe("UNAUTHENTICATED");
   });
 
   it("missing CSRF token gets 403 on mutations", async () => {

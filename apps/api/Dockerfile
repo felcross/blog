@@ -40,5 +40,6 @@ USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD wget -q --spider http://127.0.0.1:3001/api/health || exit 1
 
-# migrate deploy no boot garante schema atualizado a cada deploy
+# migrate deploy only on api boot — the worker must NOT run migrations
+# (worker overrides command to: node dist/worker.js)
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
