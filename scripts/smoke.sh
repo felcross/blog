@@ -14,7 +14,9 @@ elapsed=0
 # do container blog escuta só em IPv4 — localhost daria Connection refused.
 until docker exec blog wget -qO- http://127.0.0.1/api/health >/dev/null 2>&1; do
   if [ "$elapsed" -ge "$MAX_WAIT" ]; then
-    echo "ERRO: health check falhou após ${MAX_WAIT}s. Últimas 50 linhas de 'api':" >&2
+    echo "ERRO: health check falhou após ${MAX_WAIT}s." >&2
+    echo "wget: $(docker exec blog wget -qO- http://127.0.0.1/api/health 2>&1 || true)" >&2
+    echo "Últimas 50 linhas de 'api':" >&2
     docker logs --tail 50 blog-api >&2 || true
     exit 1
   fi
