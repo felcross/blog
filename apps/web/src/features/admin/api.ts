@@ -1,8 +1,7 @@
-import { ApiError, apiGet, apiSend } from "@/shared/api";
+import { ApiError, apiGet, apiSend, isApiError } from "@/shared/api";
 import type { AdminPost, AdminPostInput, Paginated, PostStatus } from "./types";
 
 const PAGE_SIZE = 20;
-const LOOKUP_LIMIT = 100;
 
 export function fetchAdminPosts(params: {
   status: PostStatus | null;
@@ -16,16 +15,14 @@ export function fetchAdminPosts(params: {
 }
 
 export async function fetchAdminPost(id: string): Promise<AdminPost> {
-  // The admin list contract returns full post content per item; there is no
-  // dedicated GET-by-id endpoint, so locate the post through the list.
-  const result = await apiGet<Paginated<AdminPost>>(
-    `/admin/posts?limit=${LOOKUP_LIMIT}`,
-  );
-  const found = result.items.find((item) => item.id === id);
-  if (!found) {
-    throw new ApiError("POST_NOT_FOUND", "Post not found", 404);
+  try {
+    return await apiGet<AdminPost>(`/admin/posts/${encodeURIComponent(id)}`);
+  } catch (error) {
+    if (isApiError(error) && error.status === 404) {
+      throw new ApiError("POST_NOT_FOUND", "Post not found", 404);
+    }
+    throw error;
   }
-  return found;
 }
 
 export function createAdminPost(input: AdminPostInput): Promise<AdminPost> {

@@ -68,6 +68,14 @@ export async function listPosts(
   };
 }
 
+export async function getPostById(id: string): Promise<AdminPostDetail> {
+  const post = await prisma.post.findUnique({ where: { id } });
+  if (!post) {
+    throw new AppError("POST_NOT_FOUND");
+  }
+  return toDetail(post);
+}
+
 export async function createPost(
   input: CreatePostInput,
   authorId: string,

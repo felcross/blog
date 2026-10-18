@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { getContext } from "./context.js";
 import { getLogger } from "./context.js";
 
 function isHealthPath(path: string): boolean {
@@ -27,8 +26,7 @@ export function accessLog(req: Request, res: Response, next: NextFunction): void
     const status = res.statusCode;
     const path = safeRoutePath(req);
     const health = isHealthPath(path);
-    const ctx = getContext();
-    // getLogger() already binds requestId — do not put it in the payload again
+    // getLogger() already binds requestId and userId — do not duplicate in payload
     const log = getLogger();
 
     const payload = {
@@ -36,7 +34,6 @@ export function accessLog(req: Request, res: Response, next: NextFunction): void
       route: path,
       status,
       durationMs: Math.round(durationMs * 100) / 100,
-      userId: ctx?.userId ?? req.user?.id,
     };
 
     if (health) {

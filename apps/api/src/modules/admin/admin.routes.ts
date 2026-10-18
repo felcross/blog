@@ -12,6 +12,7 @@ import {
 import {
   createPost,
   deletePost,
+  getPostById,
   listPosts,
   publishPost,
   unpublishPost,
@@ -27,6 +28,15 @@ adminRouter.get("/posts", async (req, res, next) => {
     const query = listAdminPostsQuerySchema.parse(req.query);
     const result = await listPosts(query);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/posts/:id", async (req, res, next) => {
+  try {
+    const post = await getPostById(String(req.params.id));
+    res.json(post);
   } catch (err) {
     next(err);
   }
