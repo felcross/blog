@@ -12,12 +12,24 @@ process.env.NODE_ENV = "test";
 process.env.REDIS_URL ??= "redis://localhost:6379";
 process.env.EMAIL_BACKOFF_MS ??= "20";
 
+function waitFor(check: () => boolean, timeoutMs = 5000): Promise<void> {
+  const start = Date.now();
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      if (check()) return resolve();
+      if (Date.now() - start > timeoutMs) return reject(new Error("waitFor timeout"));
+      setTimeout(tick, 25);
+    };
+    tick();
+  });
+}
+
 describe("email job retry and DLQ", () => {
   let connectionMod: typeof import("./connection.js");
   let emailQueueMod: typeof import("./email.queue.js");
   let queue: import("bullmq").Queue;
   let dlq: import("bullmq").Queue;
-  let worker: Worker;
+  let worker: Worker | undefined;
 
   beforeAll(async () => {
     connectionMod = await import("./connection.js");
@@ -40,6 +52,8 @@ describe("email job retry and DLQ", () => {
   it("retries with backoff then succeeds on third attempt", async () => {
     let attempts = 0;
     const failuresUntil = 2;
+    // Unique jobId per run — a fixed id left in Redis makes queue.add a no-op
+    const jobId = `magic-link.retry-${Date.now()}`;
 
     worker = new Worker(
       emailQueueMod.EMAIL_QUEUE_NAME,
@@ -54,9 +68,7 @@ describe("email job retry and DLQ", () => {
         concurrency: 1,
       },
     );
-
-    const failed: Error[] = [];
-    worker.on("failed", (_job, err) => failed.push(err));
+    await worker.waitUntilReady();
 
     await queue.add(
       "magic-link",
@@ -70,21 +82,29 @@ describe("email job retry and DLQ", () => {
         backoff: { type: "exponential", delay: 20 },
         removeOnComplete: true,
         removeOnFail: { age: 3600 },
-        jobId: "magic-link.retry-token-id",
+        jobId,
       },
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await waitFor(() => attempts >= 3, 8000);
     expect(attempts).toBe(3);
-    // 2 failures then success — job should be completed (removed)
-    const remaining = await queue.getJobs(["waiting", "active", "delayed", "failed"]);
-    expect(remaining.find((j) => j.id === "magic-link.retry-token-id")).toBeUndefined();
+
+    const remaining = await queue.getJobs([
+      "waiting",
+      "active",
+      "delayed",
+      "failed",
+    ]);
+    expect(remaining.find((j) => j.id === jobId)).toBeUndefined();
+
     await worker.close();
-    worker = undefined as unknown as Worker;
+    worker = undefined;
   });
 
   it("exhausted jobs produce a masked DLQ entry without url/token", async () => {
     let attempts = 0;
+    const jobId = `magic-link.fail-${Date.now()}`;
+
     worker = new Worker(
       emailQueueMod.EMAIL_QUEUE_NAME,
       async () => {
@@ -96,13 +116,17 @@ describe("email job retry and DLQ", () => {
         concurrency: 1,
       },
     );
+    await worker.waitUntilReady();
 
     const exhausted: Job[] = [];
     worker.on("failed", (job, err) => {
       const max = job?.opts.attempts ?? 3;
       if (job && job.attemptsMade >= max) {
         exhausted.push(job);
-        const data = job.data as { email?: string; requestId?: string; url?: string };
+        const data = job.data as {
+          email?: string;
+          requestId?: string;
+        };
         void dlq.add(
           "email-failed",
           {
@@ -133,15 +157,20 @@ describe("email job retry and DLQ", () => {
         backoff: { type: "exponential", delay: 20 },
         removeOnComplete: true,
         removeOnFail: { age: 3600 },
-        jobId: "magic-link.fail-token-id",
+        jobId,
       },
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await waitFor(() => exhausted.length >= 1, 8000);
     expect(attempts).toBe(3);
     expect(exhausted).toHaveLength(1);
 
-    const dlqJobs = await dlq.getJobs(["waiting", "active", "delayed", "failed"]);
+    const dlqJobs = await dlq.getJobs([
+      "waiting",
+      "active",
+      "delayed",
+      "failed",
+    ]);
     const raw = JSON.stringify(dlqJobs.map((j) => j.data));
     expect(raw).toContain("a***@example.com");
     expect(raw).not.toContain("NEVER-LOG-ME");
@@ -149,6 +178,6 @@ describe("email job retry and DLQ", () => {
     expect(raw).not.toContain("always-fail@example.com");
 
     await worker.close();
-    worker = undefined as unknown as Worker;
+    worker = undefined;
   });
 });

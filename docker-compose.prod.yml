@@ -72,6 +72,9 @@ services:
     container_name: blog-worker
     restart: unless-stopped
     command: ["node", "dist/worker.js"]
+    # A imagem da API tem HEALTHCHECK em :3001; o worker não serve HTTP.
+    healthcheck:
+      disable: true
     env_file:
       - .env
     environment:

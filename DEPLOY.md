@@ -60,6 +60,9 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ./scripts/deploy-clean.sh
 ```
 
+> O smoke usa `http://127.0.0.1/api/health` (IPv4) de propósito: o wget do Alpine
+> resolve `localhost` para `::1` e o nginx do container `blog` escuta só em IPv4.
+
 ## Logs
 
 ```bash

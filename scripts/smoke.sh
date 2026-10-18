@@ -10,7 +10,9 @@ SLEEP=2
 
 echo "Aguardando /api/health (até ${MAX_WAIT}s)..."
 elapsed=0
-until docker exec blog wget -qO- http://localhost/api/health >/dev/null 2>&1; do
+# 127.0.0.1 (IPv4): o wget do Alpine resolve localhost para ::1 e o nginx
+# do container blog escuta só em IPv4 — localhost daria Connection refused.
+until docker exec blog wget -qO- http://127.0.0.1/api/health >/dev/null 2>&1; do
   if [ "$elapsed" -ge "$MAX_WAIT" ]; then
     echo "ERRO: health check falhou após ${MAX_WAIT}s. Últimas 50 linhas de 'api':" >&2
     docker logs --tail 50 blog-api >&2 || true

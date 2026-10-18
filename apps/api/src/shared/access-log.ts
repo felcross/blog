@@ -3,14 +3,20 @@ import { getContext } from "./context.js";
 import { getLogger } from "./context.js";
 
 function isHealthPath(path: string): boolean {
-  return path === "/api/health" || path === "/api/health/ready";
+  const p = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
+  return p === "/api/health" || p === "/api/health/ready";
 }
 
 /** Never log query string values on auth routes (tokens live there). */
 function safeRoutePath(req: Request): string {
   const base = req.originalUrl.split("?")[0] ?? req.path;
   if (base.startsWith("/api/auth/")) return base;
-  return req.route?.path ? `${req.baseUrl}${req.route.path}` : base;
+  // Express route.path for get("/") is "/"; baseUrl + path yields "/api/health/"
+  const combined =
+    req.route?.path !== undefined ? `${req.baseUrl}${req.route.path}` : base;
+  return combined.endsWith("/") && combined.length > 1
+    ? combined.slice(0, -1)
+    : combined;
 }
 
 export function accessLog(req: Request, res: Response, next: NextFunction): void {
@@ -22,6 +28,7 @@ export function accessLog(req: Request, res: Response, next: NextFunction): void
     const path = safeRoutePath(req);
     const health = isHealthPath(path);
     const ctx = getContext();
+    // getLogger() already binds requestId — do not put it in the payload again
     const log = getLogger();
 
     const payload = {
@@ -29,7 +36,6 @@ export function accessLog(req: Request, res: Response, next: NextFunction): void
       route: path,
       status,
       durationMs: Math.round(durationMs * 100) / 100,
-      requestId: ctx?.requestId,
       userId: ctx?.userId ?? req.user?.id,
     };
 
